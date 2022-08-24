@@ -85,14 +85,14 @@ pub trait FromPostgresRow {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Batch {
     pub row_id: i32,
-    pub droid_id: i32,
-    pub name: String,
+    pub batch_id: String,
     pub description: String,
     pub cp_id: String,
     pub status: String,
-    pub created_at: DateTime<Utc>,
     pub host: String,
     pub path: String,
+    pub created_at: DateTime<Utc>,
+    pub last_modified_at: DateTime<Utc>,
 }
 
 impl FromPostgresRow for Batch {
@@ -100,66 +100,46 @@ impl FromPostgresRow for Batch {
         let default = "default".to_string();
         Self {
             row_id: row.get("row_id"),
-            droid_id: row.get("droid_id"),
-            cp_id: row.get("cp_id"),
-            name: row.get("name"),
+            batch_id: row.get("batch_id"),
             description: row.try_get("description").unwrap_or(default.clone()),
+            cp_id: row.get("cp_id"),
             status: row.try_get("status").unwrap_or(default.clone()),
-            created_at: row.get("created_at"), // Utc::now(), // TODO
             host: row.try_get("host").unwrap_or(default.clone()),
             path: row.try_get("path").unwrap_or(default.clone()),
+            created_at: row.get("created_at"), // Utc::now(), // TODO
+            last_modified_at: row.get("created_at"), // Utc::now(), // TODO
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DroidRecord {
+pub struct BatchRecord {
     pub row_id: i32,
-    pub droid_id: i32,
-    pub id: String,
-    pub parent_id: String,
-    pub uri: String,
-    pub file_path: String,
-    pub file_name: String,
-    pub method: String,
-    pub status: String,
-    pub size: i64,
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub ext: String,
-    pub last_modified: NaiveDate,
-    pub extension_mismatch: String,
+    pub batch_row_id: i32,
+    pub dc_identifier_localid: String,
+    pub dc_title: String,
+    pub filename: String,
+    pub filesize: i64,
     pub md5_hash: String,
-    pub format_count: i32,
-    pub puid: String,
-    pub mime_type: String,
-    pub format_name: String,
-    pub format_version: String,
+    //~ #[serde(skip)]          // Skip serde for XML-field for now until we know how to serde this Postgres-type
+    //~ pub xml: String,
+    pub created_at: DateTime<Utc>,
+    pub last_modified_at: DateTime<Utc>,
 }
 
-impl FromPostgresRow for DroidRecord {
+impl FromPostgresRow for BatchRecord {
     fn from_postgres_row(row: &Row) -> Self {
         Self {
             row_id: row.get("row_id"),
-            droid_id: row.get("droid_id"),
-            id: row.get("id"),
-            parent_id: row.get("parent_id"),
-            uri: row.get("uri"),
-            file_path: row.get("file_path"),
-            file_name: row.get("file_name"),
-            method: row.get("method"),
-            status: row.get("status"),
-            size: row.get("size"),
-            type_field: row.get("type"),
-            ext: row.get("ext"),
-            last_modified: row.get("last_modified"),
-            extension_mismatch: row.get("extension_mismatch"),
+            batch_row_id: row.get("batch_row_id"),
+            dc_identifier_localid: row.get("dc_identifier_localid"),
+            dc_title: row.get("dc_title"),
+            filename: row.get("filename"),
+            filesize: row.get("filesize"),
             md5_hash: row.get("md5_hash"),
-            format_count: row.get("format_count"),
-            puid: row.get("puid"),
-            mime_type: row.get("mime_type"),
-            format_name: row.get("format_name"),
-            format_version: row.get("format_version"),
+            //~ xml: row.get("xml"),
+            created_at: row.get("created_at"),
+            last_modified_at: row.get("last_modified_at"),
         }
     }
 }
@@ -204,10 +184,10 @@ fn filename_ext_to_xml(filename: String) -> Option<String>
 }
 
 impl WatchfolderMsg {
-    pub fn new(batch: &Batch, droid_record: &DroidRecord) -> Self {
-        let essence_file_name = droid_record.file_name.to_string();
+    pub fn new(batch: &Batch, batch_record: &BatchRecord) -> Self {
+        let essence_file_name = batch_record.filename.to_string();
         Self {
-            cp_name: batch.cp_id.to_string(),
+            cp_name: "CP_NAME:TODO".to_string(), // TODO
             flow_id: batch.cp_id.to_string(),
             server: batch.host.to_string(),
             username: "".to_string(),
@@ -218,7 +198,7 @@ impl WatchfolderMsg {
                     file_name: essence_file_name.to_string(),
                     file_path: batch.path.to_string(),
                     file_type: "essence".to_string(),
-                    md5: droid_record.md5_hash.to_string(),
+                    md5: batch_record.md5_hash.to_string(),
                     timestamp: Utc::now(),  // TODO
                 },
                 SipPackage {
