@@ -8,7 +8,7 @@ Simple CLI-tool for batch-intake: list batches, start a batch, etc.
 2. Fill in the required values in the `.env` file (example in `.env.example`) and export the variables:
 
   ```bash
-  $ export $(cat .env | xargs)
+  $ export $(grep -v '^#' .env | xargs)
   ```
 
 3. Check out the possibilities with:
