@@ -1,10 +1,21 @@
 use std::str;
+use std::env;
 use std::path::{Path, PathBuf};
 use serde::{Serialize, Deserialize};
 use serde_json;
 use chrono::{NaiveDate, DateTime, Utc};
 use postgres::row::Row;
 
+
+#[derive(Deserialize, Debug)]
+pub struct BatchConfig {
+    #[serde(default="default_cwd")]
+    pub local_path: String,
+    #[serde(default="default_empty")]
+    pub ftp_path: String,
+    #[serde(default="default_empty")]
+    pub batch_description: String,
+}
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -32,6 +43,26 @@ pub struct Config {
     pub amqp_out_queue: String,
     #[serde(default="default_amqp_prefetch_count")]
     pub amqp_prefetch_count: u16,
+    // FTP
+    #[serde(default="default_empty")]
+    pub ftp_host: String,
+    #[serde(default="default_empty")]
+    pub ftp_user: String,
+    #[serde(default="default_empty")]
+    pub ftp_passwd: String,
+}
+
+pub fn get_current_working_dir() -> String {
+    let res = env::current_dir();
+    match res {
+        Ok(path) => path.into_os_string().into_string().unwrap(),
+        Err(_) => "FAILED".to_string()
+    }
+}
+
+fn default_cwd() -> String  {
+    let current_dir = get_current_working_dir();
+    current_dir
 }
 
 fn default_user_pass() -> String  {
@@ -93,6 +124,11 @@ pub struct Batch {
     pub path: String,
     pub created_at: DateTime<Utc>,
     pub last_modified_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Batches {
+    pub batches: Vec<Batch>,
 }
 
 impl FromPostgresRow for Batch {
