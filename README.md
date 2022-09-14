@@ -14,7 +14,7 @@ Simple CLI-tool for batch-intake: list batches, start a batch, etc.
 3. Check out the possibilities with:
 
   ```bash
-  $ batch-rs -h
+  $ ./batch-rs -h
   ```
 
   ```
@@ -41,10 +41,10 @@ Simple CLI-tool for batch-intake: list batches, start a batch, etc.
 
 ### Help
 
-Help for any of the subcommands can be invoked as such: `$ batch-rs help <SUBCOMMAND>`. For instance:
+Help for any of the subcommands can be invoked as such: `$ ./batch-rs help <SUBCOMMAND>`. For instance:
 
 ```bash
-$ batch-rs help start
+$ ./batch-rs help start
 ```
 
 Output:
@@ -72,13 +72,13 @@ OPTIONS:
 #### List batches
 
 ```bash
-$ batch-rs list
+$ ./batch-rs list
 ```
 
 #### Start batches
 
 ```bash
-$ batch-rs start [OPTIONS] <BATCH_ID>
+$ ./batch-rs start [OPTIONS] <BATCH_ID>
 ```
 
 ## For developers
