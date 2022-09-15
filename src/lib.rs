@@ -1,9 +1,9 @@
 use std::str;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use serde::{Serialize, Deserialize};
 use serde_json;
-use chrono::{NaiveDate, DateTime, Utc};
+use chrono::{DateTime, Utc};
 use postgres::row::Row;
 
 
@@ -212,10 +212,9 @@ fn filename_ext_to_xml(filename: String) -> Option<String>
         None
     } else {
         let path = Path::new(&filename);
-        let file_stem = path.file_stem();
-        let mut path2 = PathBuf::from(file_stem.unwrap().to_os_string());
-        path2.set_extension("xml");
-        Some(path2.into_os_string().into_string().unwrap())
+        let mut file_stem = path.file_stem().unwrap().to_os_string();
+        file_stem.push(".xml");
+        Some(file_stem.into_string().unwrap())
     }
 }
 
@@ -250,5 +249,28 @@ impl WatchfolderMsg {
 
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_filename_ext_to_xml() {
+        let filename = String::from("/path/to/batch-id/file.tif");
+        assert_eq!(filename_ext_to_xml(filename).unwrap(), String::from("file.xml"));
+    }
+
+    #[test]
+    fn test_filename_ext_to_xml_dot() {
+        let filename = String::from("/path/to/batch-id/abc_123.N.005.tif");
+        assert_eq!(filename_ext_to_xml(filename).unwrap(), String::from("abc_123.N.005.xml"));
+    }
+
+    #[test]
+    fn test_filename_ext_to_xml_empty() {
+        let filename = String::from("");
+        assert!(filename_ext_to_xml(filename).is_none());
     }
 }
