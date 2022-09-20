@@ -18,7 +18,7 @@ Simple CLI-tool for batch-intake: list batches, start a batch, etc.
   ```
 
   ```
-  batch-rs 0.1.0
+  batch-rs 0.1.1
 
   USAGE:
       batch-rs <SUBCOMMAND>
