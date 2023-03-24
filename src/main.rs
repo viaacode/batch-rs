@@ -93,7 +93,7 @@ fn main() -> Result<(), anyhow::Error> {
             println!("Listing batches on {}...\n", &config.postgres_host);
             // Postgres
             log::info!("Connecting to database {} on {}", &config.postgres_database, &config.postgres_host);
-            let connection_string = format_postgres_connection_string(&config);
+            let connection_string = config.format_postgres_connection_string();
             //~ let (client, connection) = tokio_postgres::connect(&connection_string, NoTls).await?;
             let mut client = Client::connect(&connection_string, NoTls)?;
 
@@ -213,13 +213,13 @@ fn main() -> Result<(), anyhow::Error> {
             println!("Starting batch {}...\n", &batch_id);
             // Postgres
             log::info!("Connecting to database {} on {}", &config.postgres_database, &config.postgres_host);
-            let connection_string = format_postgres_connection_string(&config);
+            let connection_string = config.format_postgres_connection_string();
             //~ let (client, connection) = tokio_postgres::connect(&connection_string, NoTls).await?;
             let mut client = Client::connect(&connection_string, NoTls)?;
 
             // AMQP
             // Open AMQP-connection.
-            let connection_string = format_amqp_connection_string(&config);
+            let connection_string = config.format_amqp_connection_string();
             log::info!("Connecting to AMQP on {}", &config.amqp_host);
             log::debug!("Will publish to AMQP q {}", &config.amqp_out_queue);
             let mut connection = Connection::insecure_open(&connection_string)?;
@@ -280,7 +280,7 @@ fn main() -> Result<(), anyhow::Error> {
             }
 
             // Remember to close the AMQP-connection
-            connection.close();
+            connection.close()?;
 
         }
 

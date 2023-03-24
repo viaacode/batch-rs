@@ -89,23 +89,27 @@ fn default_amqp_prefetch_count() -> u16  {
   100
 }
 
-// These 2 conn string fn's can become methods on their respective configs
-pub fn format_postgres_connection_string(config: &Config) -> String {
-    format!("postgresql://{}:{}@{}/{}",
-        config.postgres_user,
-        config.postgres_passwd,
-        config.postgres_host,
-        config.postgres_database
-    )
-}
+impl Config {
+	pub fn format_postgres_connection_string(&self) -> String {
+		format!(
+			"postgresql://{}:{}@{}/{}",
+			self.postgres_user,
+			self.postgres_passwd,
+			self.postgres_host,
+			self.postgres_database,
+		)
+	}
 
-pub fn format_amqp_connection_string(config: &Config) -> String {
-    format!("amqp://{}:{}@{}:{}/{}",
-        config.amqp_user,
-        config.amqp_passwd,
-        config.amqp_host,
-        config.amqp_port,
-        config.amqp_vhost)
+	pub fn format_amqp_connection_string(&self) -> String {
+		format!(
+			"amqp://{}:{}@{}:{}/{}",
+			self.amqp_user,
+			self.amqp_passwd,
+			self.amqp_host,
+			self.amqp_port,
+			self.amqp_vhost,
+		)
+	}
 }
 
 pub trait FromPostgresRow {
@@ -203,19 +207,19 @@ pub struct SipPackage {
     pub timestamp: DateTime<Utc>,
 }
 
-// TODO:
-//fn filename_ext_to_xml<S>(filename: S) -> Option<String>
-//where S: AsRef<Path>
-fn filename_ext_to_xml(filename: String) -> Option<String>
+fn filename_ext_to_xml<S>(file_path: S) -> Option<String>
+where
+	S: AsRef<Path>
 {
-    if filename == "" {
-        None
-    } else {
-        let path = Path::new(&filename);
-        let mut file_stem = path.file_stem().unwrap().to_os_string();
-        file_stem.push(".xml");
-        Some(file_stem.into_string().unwrap())
-    }
+	let file_path_str = file_path.as_ref().to_str().unwrap();
+	if file_path_str.is_empty() {
+		return None;
+	}
+
+	let mut file_stem = file_path.as_ref().file_stem().unwrap().to_os_string();
+	file_stem.push(".xml");
+
+	Some(file_stem.into_string().unwrap())
 }
 
 impl WatchfolderMsg {
