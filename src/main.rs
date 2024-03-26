@@ -1,12 +1,12 @@
-use std::io;
 use std::env;
+use std::io;
 
-use clap::{Parser, Subcommand};
-use postgres::{Client, NoTls};
 use amiquip::{Connection, Exchange, Publish, Result};
+use clap::{Parser, Subcommand};
 use cli_table::{format::Justify, print_stdout, Cell, Style, Table};
 use duct::cmd;
 use ftp::FtpStream;
+use postgres::{Client, NoTls};
 
 use batch_rs::*;
 
@@ -33,8 +33,7 @@ enum SubCommand {
         batch_description: Option<String>,
     },
     /// List all batches in the database
-    List {
-    },
+    List {},
     /// TODO: Transform metadata for a batch
     Transform {
         #[clap(required = true, value_parser)]
@@ -60,6 +59,10 @@ enum SubCommand {
         #[clap(required = false, short, long, value_parser)]
         /// Local ID: provide a local ID of the item that should be ingested.
         local_id: Option<String>,
+        /// Auto proceed: A flag, if enabled, will skip the prompt asking to continue.
+        /// This means that the batch will start automatically without asking explicit input.
+        #[clap(required = false, short, long, value_parser)]
+        auto_proceed: bool,
     },
 }
 
@@ -69,8 +72,8 @@ fn main() -> Result<(), anyhow::Error> {
     // Get our configuration from the environment
     // The necessary environment variables can be found in the `.env` file
     let config = match envy::from_env::<Config>() {
-       Ok(config) => config,
-       Err(error) => panic!("{:#?}", error)
+        Ok(config) => config,
+        Err(error) => panic!("{:#?}", error),
     };
 
     let batch_config = BatchConfig {
@@ -83,16 +86,23 @@ fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
 
     match args.cmd {
-
-        SubCommand::Vars {batch_id, ftp_path, batch_description} => {
+        SubCommand::Vars {
+            batch_id,
+            ftp_path,
+            batch_description,
+        } => {
             println!("Vars set: {}", "batch_id".to_string());
             println!("Inferred:\n\t- TODO");
         }
 
-        SubCommand::List { } => {
+        SubCommand::List {} => {
             println!("Listing batches on {}...\n", &config.postgres_host);
             // Postgres
-            log::info!("Connecting to database {} on {}", &config.postgres_database, &config.postgres_host);
+            log::info!(
+                "Connecting to database {} on {}",
+                &config.postgres_database,
+                &config.postgres_host
+            );
             let connection_string = format_postgres_connection_string(&config);
             //~ let (client, connection) = tokio_postgres::connect(&connection_string, NoTls).await?;
             let mut client = Client::connect(&connection_string, NoTls)?;
@@ -100,7 +110,8 @@ fn main() -> Result<(), anyhow::Error> {
             // Select some fields from every batch and include the recordcount
             // For now, non-text fields are cast to text by the DB as a
             // convenience in lieu of casting the pg-timestamp to String in Rust.
-            let batch_rows = client.query("SELECT
+            let batch_rows = client.query(
+                "SELECT
                     bb.batch_id,
                     bb.description,
                     bb.path,
@@ -114,7 +125,9 @@ fn main() -> Result<(), anyhow::Error> {
                     GROUP BY bbr.batch_row_id
                 ) AS c
                 on bb.row_id = c.batch_row_id
-                ORDER BY bb.created_at ASC;", &[])?;
+                ORDER BY bb.created_at ASC;",
+                &[],
+            )?;
             log::debug!("Found batches: {:#?}", batch_rows);
 
             let mut table: Vec<Vec<String>> = Vec::new();
@@ -136,16 +149,17 @@ fn main() -> Result<(), anyhow::Error> {
                 ]);
             }
 
-            let cli_table = table.table()
-            .title(vec![
-                "batch_id".cell().bold(true),
-                "description".cell().bold(true),
-                "path".cell().bold(true),
-                "status".cell().bold(true),
-                "created_at".cell().bold(true),
-                "nr_or_records".cell().bold(true),
-            ])
-            .bold(true);
+            let cli_table = table
+                .table()
+                .title(vec![
+                    "batch_id".cell().bold(true),
+                    "description".cell().bold(true),
+                    "path".cell().bold(true),
+                    "status".cell().bold(true),
+                    "created_at".cell().bold(true),
+                    "nr_or_records".cell().bold(true),
+                ])
+                .bold(true);
             assert!(print_stdout(cli_table).is_ok());
         }
 
@@ -167,7 +181,10 @@ fn main() -> Result<(), anyhow::Error> {
         }
 
         SubCommand::Upload { batch_id } => {
-            println!("Uploading sidecars for \"{}\" to \"{}\"", batch_id, &config.ftp_host);
+            println!(
+                "Uploading sidecars for \"{}\" to \"{}\"",
+                batch_id, &config.ftp_host
+            );
 
             // Local dir
             println!("Current dir: {}", &batch_config.local_path);
@@ -177,7 +194,9 @@ fn main() -> Result<(), anyhow::Error> {
 
             // Create a connection to an FTP server and authenticate to it.
             let mut ftp_stream = FtpStream::connect(&ftp_host).unwrap();
-            let _ = ftp_stream.login(&config.ftp_user, &config.ftp_passwd).unwrap();
+            let _ = ftp_stream
+                .login(&config.ftp_user, &config.ftp_passwd)
+                .unwrap();
 
             // Get the current directory that the client will be reading from and writing to.
             println!("Current directory: {}", ftp_stream.pwd().unwrap());
@@ -206,13 +225,20 @@ fn main() -> Result<(), anyhow::Error> {
 
             // Terminate the connection to the server.
             let _ = ftp_stream.quit();
-
         }
 
-        SubCommand::Start { batch_id, local_id } => {
+        SubCommand::Start {
+            batch_id,
+            local_id,
+            auto_proceed,
+        } => {
             println!("Starting batch {}...\n", &batch_id);
             // Postgres
-            log::info!("Connecting to database {} on {}", &config.postgres_database, &config.postgres_host);
+            log::info!(
+                "Connecting to database {} on {}",
+                &config.postgres_database,
+                &config.postgres_host
+            );
             let connection_string = format_postgres_connection_string(&config);
             //~ let (client, connection) = tokio_postgres::connect(&connection_string, NoTls).await?;
             let mut client = Client::connect(&connection_string, NoTls)?;
@@ -229,7 +255,10 @@ fn main() -> Result<(), anyhow::Error> {
             let exchange = Exchange::direct(&channel);
 
             // Get batch: there should be one and only one batch found via it's ID.
-            let batch_row = client.query_one("SELECT * FROM batchin_batches where batch_id = $1;", &[&batch_id])?;
+            let batch_row = client.query_one(
+                "SELECT * FROM batchin_batches where batch_id = $1;",
+                &[&batch_id],
+            )?;
 
             log::trace!("Found row: {:#?}", batch_row);
             let batch = Batch::from_postgres_row(&batch_row);
@@ -237,31 +266,50 @@ fn main() -> Result<(), anyhow::Error> {
 
             let rows = match local_id {
                 None => {
-                    let rows = client.query("SELECT * FROM batchin_batch_records WHERE batch_row_id = $1;", &[&batch.row_id])?;
-                    log::info!("Found batch: '{}' with {} records", &batch.batch_id, rows.len());
+                    let rows = client.query(
+                        "SELECT * FROM batchin_batch_records WHERE batch_row_id = $1;",
+                        &[&batch.row_id],
+                    )?;
+                    log::info!(
+                        "Found batch: '{}' with {} records",
+                        &batch.batch_id,
+                        rows.len()
+                    );
                     rows
-                },
+                }
                 Some(local_id) => {
-                    let rows = client.query("SELECT * FROM batchin_batch_records
-                    WHERE batch_row_id = $1 AND dc_identifier_localid = $2;", &[&batch.row_id, &local_id])?;
-                    log::info!("Found batch: '{}' with {} records for local_id '{}'", &batch.batch_id, rows.len(), &local_id);
+                    let rows = client.query(
+                        "SELECT * FROM batchin_batch_records
+                    WHERE batch_row_id = $1 AND dc_identifier_localid = $2;",
+                        &[&batch.row_id, &local_id],
+                    )?;
+                    log::info!(
+                        "Found batch: '{}' with {} records for local_id '{}'",
+                        &batch.batch_id,
+                        rows.len(),
+                        &local_id
+                    );
                     rows
                 }
             };
 
-            println!("Proceed? [y/n]");
+            let proceed: String = match auto_proceed {
+                true => String::from("y"),
+                false => {
+                    println!("Proceed? [y/n]");
 
-            let mut proceed = String::new();
+                    let mut io_proceed = String::new();
 
-            io::stdin()
-                .read_line(&mut proceed)
-                .expect("Failed to read line");
+                    io::stdin()
+                        .read_line(&mut io_proceed)
+                        .expect("Failed to read line");
 
-            // A newline is added to the input when pressing enter: trim it.
-            let proceed = proceed.trim();
+                    // A newline is added to the input when pressing enter: trim it.
+                    io_proceed.trim().to_owned()
+                }
+            };
 
             if proceed == "y" {
-
                 for row in &rows {
                     log::trace!("Found row: {:#?}", row);
                     let batch_record = BatchRecord::from_postgres_row(&row);
@@ -271,19 +319,24 @@ fn main() -> Result<(), anyhow::Error> {
                     let watchfolder_json = watchfolder_msg.to_json();
                     log::debug!("WatchfolderMsgJson: {:?}", watchfolder_json);
                     // Publish
-                    log::info!("Publishing message for essence '{}' to {}/{}", &batch_record.filename, &config.amqp_host, &config.amqp_out_queue);
-                    exchange.publish(Publish::new(watchfolder_json.as_bytes(), &config.amqp_out_queue))?;
+                    log::info!(
+                        "Publishing message for essence '{}' to {}/{}",
+                        &batch_record.filename,
+                        &config.amqp_host,
+                        &config.amqp_out_queue
+                    );
+                    exchange.publish(Publish::new(
+                        watchfolder_json.as_bytes(),
+                        &config.amqp_out_queue,
+                    ))?;
                 }
-
             } else {
                 println!("Exiting");
             }
 
             // Remember to close the AMQP-connection
             connection.close();
-
         }
-
     }
 
     Ok(())

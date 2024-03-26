@@ -62,6 +62,9 @@ ARGS:
                   There should be one and only one batch found via its ID
 
 OPTIONS:
+    -a, --auto-proceed           Auto proceed: A flag, if enabled, will skip the prompt asking to
+                                 continue. This means that the batch will start automatically
+                                 without asking explicit input
     -h, --help                   Print help information
     -l, --local-id <LOCAL_ID>    Local ID: provide a local ID of the item that should be ingested
 
